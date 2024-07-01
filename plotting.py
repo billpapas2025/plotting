@@ -1,9 +1,8 @@
 import streamlit as st
-import folium
-from streamlit_folium import st_folium
+import pydeck as pdk
 
 # Título de la aplicación
-st.title('Mapa Interactivo con Folium y Streamlit')
+st.title('Mapa Interactivo con Pydeck y Streamlit')
 
 # Descripción de la aplicación
 st.markdown("""
@@ -23,28 +22,43 @@ cities = {
 # Selección de ciudad
 selected_city = st.selectbox("Selecciona una ciudad", list(cities.keys()))
 
-# Crear un mapa de Folium centrado en la ciudad seleccionada
-mapa = folium.Map(location=cities[selected_city], zoom_start=10)
+# Crear el objeto del mapa
+selected_coords = cities[selected_city]
 
-# Agregar marcador en la ciudad seleccionada
-folium.Marker(cities[selected_city], popup=selected_city).add_to(mapa)
+# Crear un círculo alrededor de la ciudad seleccionada
+circle_layer = pdk.Layer(
+    "ScatterplotLayer",
+    data=[{"position": selected_coords}],
+    get_position="position",
+    get_radius=1000,  # Radio en metros
+    get_fill_color=[0, 0, 255, 160],  # Color azul
+    pickable=True
+)
 
-# Agregar un círculo en la ciudad seleccionada
-folium.Circle(
-    location=cities[selected_city],
-    radius=1000,
-    color='blue',
-    fill=True,
-    fill_color='blue'
-).add_to(mapa)
+# Crear marcadores para todas las ciudades
+markers = pdk.Layer(
+    "ScatterplotLayer",
+    data=[{"name": city, "position": coords} for city, coords in cities.items()],
+    get_position="position",
+    get_radius=200,  # Radio en metros
+    get_fill_color=[255, 0, 0, 160],  # Color rojo
+    pickable=True
+)
+
+# Configurar la vista inicial del mapa
+view_state = pdk.ViewState(
+    latitude=selected_coords[0],
+    longitude=selected_coords[1],
+    zoom=10,
+    pitch=0
+)
+
+# Crear el objeto del mapa
+mapa = pdk.Deck(
+    layers=[circle_layer, markers],
+    initial_view_state=view_state,
+    tooltip={"text": "{name}"}
+)
 
 # Mostrar el mapa en la aplicación Streamlit
-st_folium(mapa, width=700, height=500)
-
-# Agregar marcadores en otras ciudades
-for city, coords in cities.items():
-    if city != selected_city:
-        folium.Marker(coords, popup=city).add_to(mapa)
-
-# Mostrar el mapa actualizado en la aplicación Streamlit
-st_folium(mapa, width=700, height=500)
+st.pydeck_chart(mapa)
